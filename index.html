@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Jeopardy</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="container">
+        <header>
+            <h1>Welcome to Fake Jeopardy</h1>
+        </header>
+
+        <main>
+            <div id="gameboard">
+                <!-- Category row -->
+                <div class="category"></div>
+                <div class="category"></div>
+                <div class="category"></div>
+                <div class="category"></div>
+                <div class="category"></div>
+
+                <!-- Question rows (5 rows × 5 columns = 25 cells) -->
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+                <div class="question"></div>
+            </div>
+
+            <div id="gameInfo">
+                <div>
+                    <button id="startButton">Start</button>
+                    <button id="resetButton" disabled>Reset</button>
+                </div>
+                <div id="feedback">Click Start to begin.</div>
+                <div>Score: <span id="total">0</span></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for questions -->
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="questionText">Question will appear here</h2>
+            <div id="answers" class="answers">
+                <!-- Radio buttons will be populated by JavaScript -->
+            </div>
+            <button id="submitResponse">Submit Answer</button>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
