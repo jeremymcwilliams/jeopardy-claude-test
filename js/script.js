@@ -149,14 +149,15 @@ function checkResponse() {
     const pointValue = parseInt(localStorage.getItem('currentPoints'));
     const isCorrect = selectedAnswer.value === 'correct';
 
+    // Find the correct answer text
+    const correctLabel = document.querySelector('input[value="correct"]').parentNode;
+    const correctText = correctLabel.textContent;
+
     if (isCorrect) {
         currentScore += pointValue;
-        document.getElementById('feedback').textContent = 'Correct!';
+        document.getElementById('feedback').textContent = `Correct, the answer is ${correctText}!`;
     } else {
         currentScore -= pointValue;
-        // Find the correct answer text
-        const correctLabel = document.querySelector('input[value="correct"]').parentNode;
-        const correctText = correctLabel.textContent;
         document.getElementById('feedback').textContent = `Wrong. The correct answer is: ${correctText}`;
     }
 
