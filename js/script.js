@@ -5,16 +5,8 @@ let currentQuestionIndex = null;
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('startButton').addEventListener('click', function() {
-        // For Part 1, we'll use dummy categories
-        // In Part 2, this will be replaced with setToken()
-        const dummyCategories = {
-            'Science': 1,
-            'History': 2,
-            'Sports': 3,
-            'Movies': 4,
-            'Geography': 5
-        };
-        startGame(dummyCategories);
+        // Part 2: Start with API token setup
+        setToken();
     });
 
     document.getElementById('resetButton').addEventListener('click', resetGame);
@@ -66,54 +58,72 @@ function populateBoard(categories) {
 
     // Populate categories (first row)
     const categoryNames = Object.keys(categories);
+    const categoryIds = Object.values(categories);
+
     categoryElements.forEach((element, index) => {
         if (index < categoryNames.length) {
             element.textContent = categoryNames[index];
         }
     });
 
-    // Populate question cells with point values
+    // Populate question cells with point values and data attributes
     const pointValues = [10, 20, 30, 40, 50];
     questionElements.forEach((element, index) => {
         const row = Math.floor(index / 5);
+        const col = index % 5;
         const pointValue = pointValues[row];
 
         element.textContent = pointValue;
         element.id = `question-${index}`;
 
-        // Add click event listener
+        // Add data attributes for API calls
+        element.setAttribute('data-cat', categoryIds[col]);
+
+        // Map point values to difficulty levels
+        let difficulty;
+        switch (pointValue) {
+            case 10:
+                difficulty = 'easy';
+                break;
+            case 50:
+                difficulty = 'hard';
+                break;
+            default: // 20, 30, 40
+                difficulty = 'medium';
+                break;
+        }
+        element.setAttribute('data-difficulty', difficulty);
+
+        // Add click event listener (now calls loadQuestion instead of viewQuestion)
         element.addEventListener('click', function() {
-            viewQuestion(index, pointValue);
+            loadQuestion(index, pointValue);
         });
     });
 }
 
 /**
- * Displays the question modal when a cell is clicked
- * @param {number} index - The index of the clicked question
- * @param {number} pointValue - The point value of the question
+ * Displays the question modal with API response data
+ * @param {Object} response - API response object containing question data
  */
-function viewQuestion(index, pointValue) {
-    currentQuestionIndex = index;
+function viewQuestion(response) {
+    const questionData = response.results[0];
 
-    // Store current point value for scoring
-    localStorage.setItem('currentPoints', pointValue);
+    // Decode HTML entities in question and answers
+    const question = decodeHTML(questionData.question);
+    const correctAnswer = decodeHTML(questionData.correct_answer);
+    const incorrectAnswers = questionData.incorrect_answers.map(answer => decodeHTML(answer));
 
-    // For Part 1, show dummy question
-    // In Part 2, this will be replaced with API data
-    const dummyQuestion = `This is a sample question worth ${pointValue} points.`;
-    const dummyAnswers = [
-        { text: 'Correct Answer', correct: true },
-        { text: 'Wrong Answer 1', correct: false },
-        { text: 'Wrong Answer 2', correct: false },
-        { text: 'Wrong Answer 3', correct: false }
+    // Create answers array with all options
+    const allAnswers = [
+        { text: correctAnswer, correct: true },
+        ...incorrectAnswers.map(answer => ({ text: answer, correct: false }))
     ];
 
     // Shuffle answers
-    const shuffledAnswers = shuffle([...dummyAnswers]);
+    const shuffledAnswers = shuffle([...allAnswers]);
 
     // Display question in modal
-    document.getElementById('questionText').textContent = dummyQuestion;
+    document.getElementById('questionText').textContent = question;
 
     // Generate answer options
     const answersContainer = document.getElementById('answers');
@@ -130,6 +140,9 @@ function viewQuestion(index, pointValue) {
         label.appendChild(document.createTextNode(answer.text));
         answersContainer.appendChild(label);
     });
+
+    // Reset status message
+    document.getElementById('feedback').textContent = 'Select a question.';
 
     // Show modal
     document.getElementById('questionModal').style.display = 'block';
@@ -229,4 +242,121 @@ function shuffle(array) {
         [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+}
+
+/**
+ * Fetches an API token from Open Trivia Database
+ */
+function setToken() {
+    // Update status to show we're fetching token
+    document.getElementById('feedback').textContent = 'Setting up game...';
+
+    $.ajax({
+        url: 'https://opentdb.com/api_token.php?command=request',
+        method: 'GET',
+        dataType: 'json'
+    })
+    .done(function(data) {
+        if (data.response_code === 0) {
+            localStorage.setItem('triviaToken', data.token);
+            loadCategories();
+        } else {
+            document.getElementById('feedback').textContent = 'Error setting up game. Please try again.';
+        }
+    })
+    .fail(function() {
+        document.getElementById('feedback').textContent = 'Error connecting to trivia service. Please try again.';
+    });
+}
+
+/**
+ * Loads categories from the API and starts the game
+ */
+function loadCategories() {
+    // Update status message
+    document.getElementById('feedback').textContent = 'Loading categories...';
+
+    $.ajax({
+        url: 'https://opentdb.com/api_category.php',
+        method: 'GET',
+        dataType: 'json'
+    })
+    .done(function(data) {
+        if (data.trivia_categories && data.trivia_categories.length > 0) {
+            // Randomly select 5 categories
+            const shuffledCategories = shuffle([...data.trivia_categories]);
+            const selectedCategories = shuffledCategories.slice(0, 5);
+
+            // Build categories object mapping name to ID
+            const categoriesObject = {};
+            selectedCategories.forEach(category => {
+                categoriesObject[category.name] = category.id;
+            });
+
+            // Store for later use
+            localStorage.setItem('activeCategories', JSON.stringify(categoriesObject));
+
+            // Start the game with real categories
+            startGame(categoriesObject);
+        } else {
+            document.getElementById('feedback').textContent = 'Error loading categories. Please try again.';
+        }
+    })
+    .fail(function() {
+        document.getElementById('feedback').textContent = 'Error loading categories. Please try again.';
+    });
+}
+
+/**
+ * Loads a specific question from the API based on category and difficulty
+ * @param {number} index - The index of the clicked question
+ * @param {number} pointValue - The point value of the question
+ */
+function loadQuestion(index, pointValue) {
+    const clickedElement = document.getElementById(`question-${index}`);
+    const categoryId = clickedElement.getAttribute('data-cat');
+    const difficulty = clickedElement.getAttribute('data-difficulty');
+
+    // Store current question index and point value
+    currentQuestionIndex = index;
+    localStorage.setItem('currentPoints', pointValue);
+
+    // Update status message
+    document.getElementById('feedback').textContent = 'Loading question...';
+
+    const token = localStorage.getItem('triviaToken');
+
+    $.ajax({
+        url: 'https://opentdb.com/api.php',
+        method: 'GET',
+        data: {
+            amount: 1,
+            category: categoryId,
+            difficulty: difficulty,
+            type: 'multiple',
+            token: token
+        },
+        dataType: 'json'
+    })
+    .done(function(data) {
+        if (data.response_code === 0 && data.results && data.results.length > 0) {
+            viewQuestion(data);
+        } else {
+            document.getElementById('feedback').textContent = 'Error loading question. Please try another.';
+        }
+    })
+    .fail(function() {
+        document.getElementById('feedback').textContent = 'Error loading question. Please try another.';
+    });
+}
+
+/**
+ * Decodes HTML entities in strings
+ * @param {string} str - String with HTML entities
+ * @returns {string} Decoded string
+ */
+function decodeHTML(str) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = str;
+    return txt.value;
 }
